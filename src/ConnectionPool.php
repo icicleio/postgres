@@ -31,6 +31,7 @@ class ConnectionPool extends AbstractPool
     {
         parent::__construct();
 
+        $this->connectionString = (string) $connectionString;
         $this->connectTimeout = (float) $connectTimeout;
 
         $this->maxConnections = (int) $maxConnections;
