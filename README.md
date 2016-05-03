@@ -46,25 +46,25 @@ You can also manually edit `composer.json` to add this library as a project requ
 #!/usr/bin/env php
 <?php
 
-require dirname(__DIR__) . '/vendor/autoload.php';
+require __DIR__ . '/vendor/autoload.php';
 
 use Icicle\Postgres;
 
 Icicle\execute(function () {
     /** @var \Icicle\Postgres\Connection $connection */
-    $connection = yield from Postgres\connect('host=localhost user=postgres');
+    $connection = yield from Postgres\connect('host=localhost user=postgres dbname=test');
 
     /** @var \Icicle\Postgres\Statement $statement */
-    $statement = yield from $connection->prepare('SHOW ALL');
+    $statement = yield from $connection->prepare('SELECT * FROM test WHERE id=$1');
 
     /** @var \Icicle\Postgres\TupleResult $result */
-    $result = yield from $statement->execute();
+    $result = yield from $statement->execute(1337);
 
     $iterator = $result->getIterator();
 
     while (yield from $iterator->isValid()) {
         $row = $iterator->getCurrent();
-        \printf("%-35s = %s (%s)\n", $row['name'], $row['setting'], $row['description']);
+        // $row is an array of column values from the current table row.
     }
 });
 ```
