@@ -53,7 +53,7 @@ if (!\function_exists(__NAMESPACE__ . '\connect')) {
                     case \PGSQL_POLLING_OK:
                         $poll->free();
                         $await->free();
-                        $delayed->resolve(new Connection($connection, $resource));
+                        $delayed->resolve(new BasicConnection($connection, $resource));
                         return;
                 }
             } catch (\Exception $exception) {

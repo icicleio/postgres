@@ -4,12 +4,11 @@ namespace Icicle\Tests\Postgres;
 use Icicle\Coroutine;
 use Icicle\Loop;
 use Icicle\Postgres\CommandResult;
-use Icicle\Postgres\Connection;
-use Icicle\Postgres\Exception\FailureException;
+use Icicle\Postgres\BasicConnection;
 use Icicle\Postgres\Exception\QueryError;
 use Icicle\Postgres\TupleResult;
 
-class ConnectionTest extends \PHPUnit_Framework_TestCase
+class BasicConnectionTest extends \PHPUnit_Framework_TestCase
 {
     /**
      * @var \Icicle\Postgres\Connection
@@ -53,7 +52,7 @@ class ConnectionTest extends \PHPUnit_Framework_TestCase
             }
         }
 
-        $this->connection = new Connection($this->handle, $socket);
+        $this->connection = new BasicConnection($this->handle, $socket);
     }
 
     public function tearDown()
