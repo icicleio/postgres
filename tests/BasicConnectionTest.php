@@ -2,6 +2,7 @@
 namespace Icicle\Tests\Postgres;
 
 use Icicle\Coroutine;
+use Icicle\Exception\InvalidArgumentError;
 use Icicle\Loop;
 use Icicle\Postgres\CommandResult;
 use Icicle\Postgres\BasicConnection;
@@ -70,12 +71,36 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
 
             $this->assertSame(4, $result->numRows());
             $this->assertSame(2, $result->numFields());
+            $this->assertSame(4, count($result));
 
             $this->assertSame('domain', $result->fieldName(0));
             $this->assertSame('tld', $result->fieldName(1));
 
             $this->assertSame(0, $result->fieldNum('domain'));
             $this->assertSame(1, $result->fieldNum('tld'));
+
+            $this->assertSame(-1, $result->fieldSize('domain'));
+            $this->assertSame('varchar', $result->fieldType('tld'));
+
+            try {
+                $result->fieldNum('test');
+                $this->fail('Getting number of unknown field should fail.');
+            } catch (InvalidArgumentError $exception) {}
+
+            try {
+                $result->fieldName(-1);
+                $this->fail('Getting name of unknown field should fail.');
+            } catch (InvalidArgumentError $exception) {}
+
+            try {
+                $result->fieldType(-1);
+                $this->fail('Getting type of unknown field should fail.');
+            } catch (InvalidArgumentError $exception) {}
+
+            try {
+                $result->fieldSize(-1);
+                $this->fail('Getting size of unknown field should fail.');
+            } catch (InvalidArgumentError $exception) {}
 
             $iterator = $result->getIterator();
 
@@ -98,6 +123,7 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
             $result = (yield $this->connection->query("INSERT INTO test VALUES ('canon', 'jp')"));
 
             $this->assertInstanceOf(CommandResult::class, $result);
+            $this->assertSame(1, $result->affectedRows());
         });
 
         $coroutine->wait();
