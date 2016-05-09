@@ -10,7 +10,7 @@ class FunctionsTest extends \PHPUnit_Framework_TestCase
     public function testConnect()
     {
         $coroutine = Coroutine\create(function () {
-            $connection = (yield Postgres\connect('host=localhost user=postgres', 1));
+            $connection = yield from Postgres\connect('host=localhost user=postgres', 1);
 
             $this->assertInstanceOf(Connection::class, $connection);
         });
@@ -24,7 +24,7 @@ class FunctionsTest extends \PHPUnit_Framework_TestCase
     public function testConnectInvalidUser()
     {
         $coroutine = Coroutine\create(function () {
-            $connection = (yield Postgres\connect('host=localhost user=invalid', 1));
+            $connection = yield from Postgres\connect('host=localhost user=invalid', 1);
         });
 
         $coroutine->wait();
@@ -36,7 +36,7 @@ class FunctionsTest extends \PHPUnit_Framework_TestCase
     public function testConnectInvalidConnectionString()
     {
         $coroutine = Coroutine\create(function () {
-            $connection = (yield Postgres\connect('invalid connection string', 1));
+            $connection = yield from Postgres\connect('invalid connection string', 1);
         });
 
         $coroutine->wait();
@@ -48,7 +48,7 @@ class FunctionsTest extends \PHPUnit_Framework_TestCase
     public function testConnectInvalidHost()
     {
         $coroutine = Coroutine\create(function () {
-            $connection = (yield Postgres\connect('hostaddr=invalid.host user=postgres', 1));
+            $connection = yield from Postgres\connect('hostaddr=invalid.host user=postgres', 1);
         });
 
         $coroutine->wait();

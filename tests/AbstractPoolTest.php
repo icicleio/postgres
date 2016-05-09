@@ -3,11 +3,7 @@ namespace Icicle\Tests\Postgres;
 
 use Icicle\Coroutine;
 use Icicle\Loop;
-use Icicle\Postgres\CommandResult;
-use Icicle\Postgres\Connection;
-use Icicle\Postgres\Statement;
-use Icicle\Postgres\Transaction;
-use Icicle\Postgres\TupleResult;
+use Icicle\Postgres\{CommandResult, Connection, Statement, Transaction, TupleResult};
 
 abstract class AbstractPoolTest extends \PHPUnit_Framework_TestCase
 {
@@ -76,13 +72,13 @@ abstract class AbstractPoolTest extends \PHPUnit_Framework_TestCase
             ->method($method)
             ->with(...$params)
             ->will($this->returnCallback(function () use ($result) {
-                yield $result;
+                return yield $result;
             }));
 
         $pool = $this->createPool($connections);
 
         $coroutine = Coroutine\create(function () use ($method, $pool, $params, $result) {
-            $return = (yield $pool->{$method}(...$params));
+            $return = yield $pool->{$method}(...$params);
 
             $this->assertSame($result, $return);
         });
@@ -108,18 +104,17 @@ abstract class AbstractPoolTest extends \PHPUnit_Framework_TestCase
         $connections = $this->makeConnectionSet($count);
 
         foreach ($connections as $connection) {
-            $connection->expects($this->atLeast($rounds - 1))
-                ->method($method)
+            $connection->method($method)
                 ->with(...$params)
                 ->will($this->returnCallback(function () use ($result) {
-                    yield $result;
+                    return yield $result;
                 }));
         }
 
         $pool = $this->createPool($connections);
 
         $callback = function () use ($method, $pool, $params) {
-            yield $pool->{$method}(...$params);
+            return yield from $pool->{$method}(...$params);
         };
 
         for ($i = 0; $i < $count * $rounds; ++$i) {
@@ -156,15 +151,15 @@ abstract class AbstractPoolTest extends \PHPUnit_Framework_TestCase
             ->method('transaction')
             ->with(Transaction::COMMITTED)
             ->will($this->returnCallback(function () use ($result) {
-                yield $result;
+                return yield $result;
             }));
 
         $pool = $this->createPool($connections);
 
         $coroutine = Coroutine\create(function () use ($pool, $result) {
-            $return = (yield $pool->transaction(Transaction::COMMITTED));
+            $return = yield from $pool->transaction(Transaction::COMMITTED);
             $this->assertInstanceOf(Transaction::class, $return);
-            yield $return->rollback();
+            yield from $return->rollback();
         });
 
         $coroutine->wait();
@@ -185,19 +180,18 @@ abstract class AbstractPoolTest extends \PHPUnit_Framework_TestCase
         $connections = $this->makeConnectionSet($count);
 
         foreach ($connections as $connection) {
-            $connection->expects($this->atLeast($rounds - 1))
-                ->method('transaction')
+            $connection->method('transaction')
                 ->with(Transaction::COMMITTED)
                 ->will($this->returnCallback(function () use ($result) {
-                    yield $result;
+                    return yield $result;
                 }));
         }
 
         $pool = $this->createPool($connections);
 
         $callback = function () use ($pool, $result) {
-            $transaction = (yield $pool->transaction(Transaction::COMMITTED));
-            yield $transaction->rollback();
+            $transaction = yield from $pool->transaction(Transaction::COMMITTED);
+            yield from $transaction->rollback();
         };
 
         for ($i = 0; $i < $count * $rounds; ++$i) {

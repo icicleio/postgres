@@ -4,12 +4,8 @@ namespace Icicle\Tests\Postgres;
 use Icicle\Coroutine;
 use Icicle\Exception\InvalidArgumentError;
 use Icicle\Loop;
-use Icicle\Postgres\CommandResult;
-use Icicle\Postgres\BasicConnection;
-use Icicle\Postgres\Exception\QueryError;
-use Icicle\Postgres\Exception\TransactionError;
-use Icicle\Postgres\Transaction;
-use Icicle\Postgres\TupleResult;
+use Icicle\Postgres\{BasicConnection, CommandResult, Transaction, TupleResult};
+use Icicle\Postgres\Exception\{QueryError, TransactionError};
 
 class BasicConnectionTest extends \PHPUnit_Framework_TestCase
 {
@@ -68,7 +64,7 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
     {
         $coroutine = Coroutine\create(function () {
             /** @var \Icicle\Postgres\TupleResult $result */
-            $result = (yield $this->connection->query("SELECT * FROM test"));
+            $result = yield from $this->connection->query("SELECT * FROM test");
 
             $this->assertInstanceOf(TupleResult::class, $result);
 
@@ -109,7 +105,7 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
 
             $data = $this->getData();
 
-            for ($i = 0; (yield $iterator->isValid()); ++$i) {
+            for ($i = 0; yield from $iterator->isValid(); ++$i) {
                 $row = $iterator->getCurrent();
                 $this->assertSame($data[$i][0], $row['domain']);
                 $this->assertSame($data[$i][1], $row['tld']);
@@ -123,7 +119,7 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
     {
         $coroutine = Coroutine\create(function () {
             /** @var \Icicle\Postgres\CommandResult $result */
-            $result = (yield $this->connection->query("INSERT INTO test VALUES ('canon', 'jp')"));
+            $result = yield from $this->connection->query("INSERT INTO test VALUES ('canon', 'jp')");
 
             $this->assertInstanceOf(CommandResult::class, $result);
             $this->assertSame(1, $result->affectedRows());
@@ -139,7 +135,7 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
     {
         $coroutine = Coroutine\create(function () {
             /** @var \Icicle\Postgres\CommandResult $result */
-            $result = (yield $this->connection->query(''));
+            $result = yield from $this->connection->query('');
         });
 
         $coroutine->wait();
@@ -152,7 +148,7 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
     {
         $coroutine = Coroutine\create(function () {
             /** @var \Icicle\Postgres\CommandResult $result */
-            $result = (yield $this->connection->query("SELECT & FROM test"));
+            $result = yield from $this->connection->query("SELECT & FROM test");
         });
 
         $coroutine->wait();
@@ -164,14 +160,14 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
             $query = "SELECT * FROM test WHERE domain=\$1";
 
             /** @var \Icicle\Postgres\Statement $statement */
-            $statement = (yield $this->connection->prepare($query));
+            $statement = yield from $this->connection->prepare($query);
 
             $this->assertSame($query, $statement->getQuery());
 
             $data = $this->getData()[0];
 
             /** @var \Icicle\Postgres\TupleResult $result */
-            $result = (yield $statement->execute($data[0]));
+            $result = yield from $statement->execute($data[0]);
 
             $this->assertInstanceOf(TupleResult::class, $result);
 
@@ -186,7 +182,7 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
 
             $iterator = $result->getIterator();
 
-            while (yield $iterator->isValid()) {
+            while (yield from $iterator->isValid()) {
                 $row = $iterator->getCurrent();
                 $this->assertSame($data[0], $row['domain']);
                 $this->assertSame($data[1], $row['tld']);
@@ -202,7 +198,7 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
             $data = $this->getData()[0];
 
             /** @var \Icicle\Postgres\TupleResult $result */
-            $result = (yield $this->connection->execute("SELECT * FROM test WHERE domain=\$1", $data[0]));
+            $result = yield from $this->connection->execute("SELECT * FROM test WHERE domain=\$1", $data[0]);
 
             $this->assertInstanceOf(TupleResult::class, $result);
 
@@ -217,7 +213,7 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
 
             $iterator = $result->getIterator();
 
-            while (yield $iterator->isValid()) {
+            while (yield from $iterator->isValid()) {
                 $row = $iterator->getCurrent();
                 $this->assertSame($data[0], $row['domain']);
                 $this->assertSame($data[1], $row['tld']);
@@ -234,13 +230,13 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
     {
         $callback = function () {
             /** @var \Icicle\Postgres\TupleResult $result */
-            $result = (yield $this->connection->query("SELECT * FROM test"));
+            $result = yield from $this->connection->query("SELECT * FROM test");
 
             $iterator = $result->getIterator();
 
             $data = $this->getData();
 
-            for ($i = 0; (yield $iterator->isValid()); ++$i) {
+            for ($i = 0; yield from $iterator->isValid(); ++$i) {
                 $row = $iterator->getCurrent();
                 $this->assertSame($data[$i][0], $row['domain']);
                 $this->assertSame($data[$i][1], $row['tld']);
@@ -263,13 +259,13 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
     {
         $callback = function ($query) {
             /** @var \Icicle\Postgres\TupleResult $result */
-            $result = (yield $this->connection->query($query));
+            $result = yield from $this->connection->query($query);
 
             $iterator = $result->getIterator();
 
             $data = $this->getData();
 
-            for ($i = 0; (yield $iterator->isValid()); ++$i) {
+            for ($i = 0; yield from $iterator->isValid(); ++$i) {
                 $row = $iterator->getCurrent();
                 $this->assertSame($data[$i][0], $row['domain']);
                 $this->assertSame($data[$i][1], $row['tld']);
@@ -291,13 +287,13 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
     {
         $coroutine = Coroutine\create(function () {
             /** @var \Icicle\Postgres\TupleResult $result */
-            $result = (yield $this->connection->query("SELECT * FROM test"));
+            $result = yield from $this->connection->query("SELECT * FROM test");
 
             $iterator = $result->getIterator();
 
             $data = $this->getData();
 
-            for ($i = 0; (yield $iterator->isValid()); ++$i) {
+            for ($i = 0; yield from $iterator->isValid(); ++$i) {
                 $row = $iterator->getCurrent();
                 $this->assertSame($data[$i][0], $row['domain']);
                 $this->assertSame($data[$i][1], $row['tld']);
@@ -310,13 +306,13 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
             $statement = (yield $this->connection->prepare("SELECT * FROM test"));
 
             /** @var \Icicle\Postgres\TupleResult $result */
-            $result = (yield $statement->execute());
+            $result = yield from $statement->execute();
 
             $iterator = $result->getIterator();
 
             $data = $this->getData();
 
-            for ($i = 0; (yield $iterator->isValid()); ++$i) {
+            for ($i = 0; yield from $iterator->isValid(); ++$i) {
                 $row = $iterator->getCurrent();
                 $this->assertSame($data[$i][0], $row['domain']);
                 $this->assertSame($data[$i][1], $row['tld']);
@@ -331,16 +327,16 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
     {
         $coroutine = Coroutine\create(function () {
             /** @var \Icicle\Postgres\Statement $statement */
-            $statement = (yield $this->connection->prepare("SELECT * FROM test"));
+            $statement = yield from $this->connection->prepare("SELECT * FROM test");
 
             /** @var \Icicle\Postgres\TupleResult $result */
-            $result = (yield $statement->execute());
+            $result = yield from $statement->execute();
 
             $iterator = $result->getIterator();
 
             $data = $this->getData();
 
-            for ($i = 0; (yield $iterator->isValid()); ++$i) {
+            for ($i = 0; yield from $iterator->isValid(); ++$i) {
                 $row = $iterator->getCurrent();
                 $this->assertSame($data[$i][0], $row['domain']);
                 $this->assertSame($data[$i][1], $row['tld']);
@@ -350,13 +346,13 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
 
         $coroutine = Coroutine\create(function () {
             /** @var \Icicle\Postgres\TupleResult $result */
-            $result = (yield $this->connection->execute("SELECT * FROM test"));
+            $result = yield from $this->connection->execute("SELECT * FROM test");
 
             $iterator = $result->getIterator();
 
             $data = $this->getData();
 
-            for ($i = 0; (yield $iterator->isValid()); ++$i) {
+            for ($i = 0; yield from $iterator->isValid(); ++$i) {
                 $row = $iterator->getCurrent();
                 $this->assertSame($data[$i][0], $row['domain']);
                 $this->assertSame($data[$i][1], $row['tld']);
@@ -373,7 +369,7 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
             $isolation = Transaction::COMMITTED;
 
             /** @var \Icicle\Postgres\Transaction $transaction */
-            $transaction = (yield $this->connection->transaction($isolation));
+            $transaction = yield from $this->connection->transaction($isolation);
 
             $this->assertInstanceOf(Transaction::class, $transaction);
 
@@ -384,7 +380,7 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
 
             yield $transaction->savepoint('test');
 
-            $result = (yield $transaction->execute("SELECT * FROM test WHERE domain=\$1 FOR UPDATE", $data[0]));
+            $result = yield from $transaction->execute("SELECT * FROM test WHERE domain=\$1 FOR UPDATE", $data[0]);
 
             yield $transaction->rollbackTo('test');
 
@@ -393,7 +389,7 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
             $this->assertFalse($transaction->isActive());
 
             try {
-                $result = (yield $transaction->execute("SELECT * FROM test"));
+                $result = yield from $transaction->execute("SELECT * FROM test");
                 $this->fail('Query should fail after transaction commit');
             } catch (TransactionError $exception) {
                 // Exception expected.

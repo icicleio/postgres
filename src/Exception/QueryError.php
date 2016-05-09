@@ -9,4 +9,4 @@
 
 namespace Icicle\Postgres\Exception;
 
-class QueryError extends \Exception implements Error {}
+class QueryError extends \Error implements Error {}

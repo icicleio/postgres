@@ -5,8 +5,7 @@ use Icicle\Awaitable\Delayed;
 use Icicle\Exception\InvalidArgumentError;
 use Icicle\Loop;
 use Icicle\Loop\Watcher\Io;
-use Icicle\Postgres\Exception\FailureException;
-use Icicle\Postgres\Exception\QueryError;
+use Icicle\Postgres\Exception\{FailureException, QueryError};
 
 class BasicConnection implements Connection
 {
@@ -50,7 +49,7 @@ class BasicConnection implements Connection
     {
         $this->handle = $handle;
 
-        $this->poll = Loop\poll($socket, static function ($resource, $expired, Io $poll) use ($handle) {
+        $this->poll = Loop\poll($socket, static function ($resource, bool $expired, Io $poll) use ($handle) {
             /** @var \Icicle\Awaitable\Delayed $delayed */
             $delayed = $poll->getData();
 
@@ -67,7 +66,7 @@ class BasicConnection implements Connection
             $poll->listen(); // Reading not done, listen again.
         });
 
-        $this->await = Loop\await($socket, static function ($resource, $expired, Io $await) use ($handle) {
+        $this->await = Loop\await($socket, static function ($resource, bool $expired, Io $await) use ($handle) {
             $flush = \pg_flush($handle);
             if (0 === $flush) {
                 $await->listen(); // Not finished sending data, listen again.
@@ -85,8 +84,8 @@ class BasicConnection implements Connection
             \pg_cancel_query($handle);
         };
 
-        $this->executeCallback = function ($name, array $params) {
-            yield $this->createResult(yield $this->send('pg_send_execute', $name, $params));
+        $this->executeCallback = function (string $name, array $params): \Generator {
+            return $this->createResult(yield from $this->send('pg_send_execute', $name, $params));
         };
     }
 
@@ -115,12 +114,12 @@ class BasicConnection implements Connection
      *
      * @throws \Icicle\Postgres\Exception\FailureException
      */
-    private function send(callable $function, ...$args)
+    private function send(callable $function, ...$args): \Generator
     {
         while (null !== $this->delayed) {
             try {
                 yield $this->delayed;
-            } catch (\Exception $exception) {
+            } catch (\Throwable $exception) {
                 // Ignore failure from another operation.
             }
         }
@@ -142,14 +141,14 @@ class BasicConnection implements Connection
         }
 
         try {
-            $result = (yield $this->delayed);
+            $result = yield $this->delayed;
         } finally {
             $this->delayed = null;
             $this->poll->cancel();
             $this->await->cancel();
         }
 
-        yield $result;
+        return $result;
     }
 
     /**
@@ -187,59 +186,57 @@ class BasicConnection implements Connection
     /**
      * {@inheritdoc}
      */
-    public function query($sql)
+    public function query(string $sql): \Generator
     {
-        yield $this->createResult(yield $this->send('pg_send_query', (string) $sql));
+        return $this->createResult(yield from $this->send('pg_send_query', $sql));
     }
 
     /**
      * {@inheritdoc}
      */
-    public function execute($sql, ...$params)
+    public function execute(string $sql, ...$params): \Generator
     {
-        yield $this->createResult(yield $this->send('pg_send_query_params', (string) $sql, $params));
+        return $this->createResult(yield from $this->send('pg_send_query_params', $sql, $params));
     }
 
     /**
      * {@inheritdoc}
      */
-    public function prepare($sql)
+    public function prepare(string $sql): \Generator
     {
-        $sql = (string) $sql;
-
-        if (!(yield $this->send('pg_send_prepare', $sql, $sql))) {
+        if (!yield from $this->send('pg_send_prepare', $sql, $sql)) {
             throw new FailureException(\pg_last_error($this->handle));
         }
 
-        yield new Statement($sql, $this->executeCallback);
+        return new Statement($sql, $this->executeCallback);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function transaction($isolation = Transaction::COMMITTED)
+    public function transaction(int $isolation = Transaction::COMMITTED): \Generator
     {
         switch ($isolation) {
             case Transaction::UNCOMMITTED:
-                yield $this->query('BEGIN TRANSACTION ISOLATION LEVEL READ UNCOMMITTED');
+                yield from $this->query('BEGIN TRANSACTION ISOLATION LEVEL READ UNCOMMITTED');
                 break;
 
             case Transaction::COMMITTED:
-                yield $this->query('BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED');
+                yield from $this->query('BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED');
                 break;
 
             case Transaction::REPEATABLE:
-                yield $this->query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+                yield from $this->query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ');
                 break;
 
             case Transaction::SERIALIZABLE:
-                yield $this->query('BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE');
+                yield from $this->query('BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE');
                 break;
 
             default:
                 throw new InvalidArgumentError('Invalid transaction type');
         }
 
-        yield new Transaction($this, $isolation);
+        return new Transaction($this, $isolation);
     }
 }

@@ -9,4 +9,4 @@
 
 namespace Icicle\Postgres\Exception;
 
-class TransactionError extends \Exception implements Error {}
+class TransactionError extends \Error implements Error {}

@@ -14,7 +14,7 @@ interface Executor
      *
      * @throws \Icicle\Postgres\Exception\FailureException
      */
-    public function query($sql);
+    public function query(string $sql): \Generator;
 
     /**
      * @coroutine
@@ -28,7 +28,7 @@ interface Executor
      *
      * @throws \Icicle\Postgres\Exception\FailureException
      */
-    public function execute($sql, ...$params);
+    public function execute(string $sql, ...$params): \Generator;
 
     /**
      * @coroutine
@@ -41,5 +41,5 @@ interface Executor
      *
      * @throws \Icicle\Postgres\Exception\FailureException
      */
-    public function prepare($sql);
+    public function prepare(string $sql): \Generator;
 }

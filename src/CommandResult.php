@@ -27,7 +27,7 @@ class CommandResult
     /**
      * @return int Number of rows affected by the INSERT, UPDATE, or DELETE query.
      */
-    public function affectedRows()
+    public function affectedRows(): int
     {
         return \pg_affected_rows($this->handle);
     }
@@ -35,7 +35,7 @@ class CommandResult
     /**
      * @return string
      */
-    public function lastOid()
+    public function lastOid(): string
     {
         return (string) \pg_last_oid($this->handle);
     }

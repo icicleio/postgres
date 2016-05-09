@@ -17,7 +17,7 @@ class Statement
      * @param string $sql
      * @param callable $execute
      */
-    public function __construct($sql, callable $execute)
+    public function __construct(string $sql, callable $execute)
     {
         $this->sql = $sql;
         $this->execute = $execute;
@@ -26,7 +26,7 @@ class Statement
     /**
      * @return string
      */
-    public function getQuery()
+    public function getQuery(): string
     {
         return $this->sql;
     }
@@ -42,9 +42,8 @@ class Statement
      *
      * @throws \Icicle\Postgres\Exception\FailureException If executing the statement fails.
      */
-    public function execute(...$params)
+    public function execute(...$params): \Generator
     {
-        $execute = $this->execute;
-        return $execute($this->sql, $params);
+        return ($this->execute)($this->sql, $params);
     }
 }

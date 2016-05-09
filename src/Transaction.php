@@ -33,7 +33,7 @@ class Transaction implements Executor
      *
      * @throws \Icicle\Exception\InvalidArgumentError
      */
-    public function __construct(Executor $executor, $isolation = self::COMMITTED, callable $push = null)
+    public function __construct(Executor $executor, int $isolation = self::COMMITTED, callable $push = null)
     {
         switch ($isolation) {
             case self::UNCOMMITTED:
@@ -61,7 +61,7 @@ class Transaction implements Executor
     /**
      * @return bool
      */
-    public function isActive()
+    public function isActive(): bool
     {
         return null !== $this->executor;
     }
@@ -69,7 +69,7 @@ class Transaction implements Executor
     /**
      * @return int
      */
-    public function getIsolationLevel()
+    public function getIsolationLevel(): int
     {
         return $this->isolation;
     }
@@ -80,9 +80,7 @@ class Transaction implements Executor
     private function push()
     {
         if (null !== $this->push) {
-            $push = $this->push;
-            $push();
-
+            ($this->push)();
             $this->push = null;
         }
     }
@@ -90,37 +88,37 @@ class Transaction implements Executor
     /**
      * {@inheritdoc}
      */
-    public function query($sql)
+    public function query(string $sql): \Generator
     {
         if (null === $this->executor) {
             throw new TransactionError('The transaction has been committed or rolled back');
         }
 
-        yield $this->executor->query($sql);
+        return yield from $this->executor->query($sql);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function prepare($sql)
+    public function prepare(string $sql): \Generator
     {
         if (null === $this->executor) {
             throw new TransactionError('The transaction has been committed or rolled back');
         }
 
-        yield $this->executor->prepare($sql);
+        return yield from $this->executor->prepare($sql);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function execute($sql, ...$params)
+    public function execute(string $sql, ...$params): \Generator
     {
         if (null === $this->executor) {
             throw new TransactionError('The transaction has been committed or rolled back');
         }
 
-        yield $this->executor->execute($sql, ...$params);
+        return yield from $this->executor->execute($sql, ...$params);
     }
 
     /**
@@ -134,7 +132,7 @@ class Transaction implements Executor
      *
      * @throws \Icicle\Postgres\Exception\TransactionError
      */
-    public function commit()
+    public function commit(): \Generator
     {
         if (null === $this->executor) {
             throw new TransactionError('The transaction has been committed or rolled back');
@@ -144,10 +142,12 @@ class Transaction implements Executor
         $this->executor = null;
 
         try {
-            yield $executor->query('COMMIT');
+            $result = yield from $executor->query('COMMIT');
         } finally {
             $this->push();
         }
+
+        return $result;
     }
 
     /**
@@ -161,7 +161,7 @@ class Transaction implements Executor
      *
      * @throws \Icicle\Postgres\Exception\TransactionError
      */
-    public function rollback()
+    public function rollback(): \Generator
     {
         if (null === $this->executor) {
             throw new TransactionError('The transaction has been committed or rolled back');
@@ -171,10 +171,12 @@ class Transaction implements Executor
         $this->executor = null;
 
         try {
-            yield $executor->query('ROLLBACK');
+            $result = yield from $executor->query('ROLLBACK');
         } finally {
             $this->push();
         }
+
+        return $result;
     }
 
     /**
@@ -188,7 +190,7 @@ class Transaction implements Executor
      *
      * @throws \Icicle\Postgres\Exception\TransactionError
      */
-    public function savepoint($identifier)
+    public function savepoint(string $identifier): \Generator
     {
         return $this->query('SAVEPOINT ' . $identifier);
     }
@@ -205,7 +207,7 @@ class Transaction implements Executor
      *
      * @throws \Icicle\Postgres\Exception\TransactionError
      */
-    public function rollbackTo($identifier)
+    public function rollbackTo(string $identifier): \Generator
     {
         return $this->query('ROLLBACK TO ' . $identifier);
     }
@@ -222,7 +224,7 @@ class Transaction implements Executor
      *
      * @throws \Icicle\Postgres\Exception\TransactionError
      */
-    public function release($identifier)
+    public function release(string $identifier): \Generator
     {
         return $this->query('RELEASE SAVEPOINT ' . $identifier);
     }

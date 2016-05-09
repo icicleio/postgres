@@ -14,5 +14,5 @@ interface Connection extends Executor
      *
      * @throws \Icicle\Postgres\Exception\FailureException
      */
-    public function transaction($isolation = Transaction::COMMITTED);
+    public function transaction(int $isolation = Transaction::COMMITTED): \Generator;
 }

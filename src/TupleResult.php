@@ -29,10 +29,10 @@ class TupleResult extends Emitter implements \Countable
                     throw new FailureException(\pg_result_error($this->handle));
                 }
 
-                yield $emit($result);
+                yield from $emit($result);
             }
 
-            yield $i;
+            return $i;
         });
     }
 
@@ -47,7 +47,7 @@ class TupleResult extends Emitter implements \Countable
     /**
      * @return int Number of rows in the result set.
      */
-    public function numRows()
+    public function numRows(): int
     {
         return \pg_num_rows($this->handle);
     }
@@ -55,7 +55,7 @@ class TupleResult extends Emitter implements \Countable
     /**
      * @return int Number of fields in each row.
      */
-    public function numFields()
+    public function numFields(): int
     {
         return \pg_num_fields($this->handle);
     }
@@ -67,7 +67,7 @@ class TupleResult extends Emitter implements \Countable
      *
      * @throws \Icicle\Exception\InvalidArgumentError If the field number does not exist in the result.
      */
-    public function fieldName($fieldNum)
+    public function fieldName(int $fieldNum): string
     {
         return \pg_field_name($this->handle, $this->filterNameOrNum($fieldNum));
     }
@@ -79,7 +79,7 @@ class TupleResult extends Emitter implements \Countable
      *
      * @throws \Icicle\Exception\InvalidArgumentError If the field name does not exist in the result.
      */
-    public function fieldNum($fieldName)
+    public function fieldNum(string $fieldName): int
     {
         $result = \pg_field_num($this->handle, $fieldName);
 
@@ -97,7 +97,7 @@ class TupleResult extends Emitter implements \Countable
      *
      * @throws \Icicle\Exception\InvalidArgumentError If the field number does not exist in the result.
      */
-    public function fieldType($fieldNameOrNum)
+    public function fieldType($fieldNameOrNum): string
     {
         return \pg_field_type($this->handle, $this->filterNameOrNum($fieldNameOrNum));
     }
@@ -109,7 +109,7 @@ class TupleResult extends Emitter implements \Countable
      *
      * @throws \Icicle\Exception\InvalidArgumentError If the field number does not exist in the result.
      */
-    public function fieldSize($fieldNameOrNum)
+    public function fieldSize($fieldNameOrNum): int
     {
         return \pg_field_size($this->handle, $this->filterNameOrNum($fieldNameOrNum));
     }
@@ -117,7 +117,7 @@ class TupleResult extends Emitter implements \Countable
     /**
      * @return int Number of rows in the result set.
      */
-    public function count()
+    public function count(): int
     {
         return $this->numRows();
     }
@@ -129,7 +129,7 @@ class TupleResult extends Emitter implements \Countable
      *
      * @throws \Icicle\Exception\InvalidArgumentError
      */
-    private function filterNameOrNum($fieldNameOrNum)
+    private function filterNameOrNum($fieldNameOrNum): int
     {
         if (is_string($fieldNameOrNum)) {
             return $this->fieldNum($fieldNameOrNum);

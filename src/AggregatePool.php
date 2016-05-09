@@ -16,15 +16,16 @@ class AggregatePool extends AbstractPool
     /**
      * {@inheritdoc}
      */
-    protected function createConnection()
+    protected function createConnection(): \Generator
     {
         throw new PoolError('Creating connections is not available in an aggregate pool');
+        yield; // Unreachable, but makes method a coroutine.
     }
 
     /**
      * {@inheritdoc}
      */
-    public function getMaxConnections()
+    public function getMaxConnections(): int
     {
         $count = $this->getConnectionCount();
 

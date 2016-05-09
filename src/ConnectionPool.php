@@ -29,16 +29,16 @@ class ConnectionPool extends AbstractPool
      * @param float|int $connectTimeout
      */
     public function __construct(
-        $connectionString,
-        $maxConnections = self::DEFAULT_MAX_CONNECTIONS,
-        $connectTimeout = self::DEFAULT_CONNECT_TIMEOUT
+        string $connectionString,
+        int $maxConnections = self::DEFAULT_MAX_CONNECTIONS,
+        float $connectTimeout = self::DEFAULT_CONNECT_TIMEOUT
     ) {
         parent::__construct();
 
-        $this->connectionString = (string) $connectionString;
-        $this->connectTimeout = (float) $connectTimeout;
+        $this->connectionString = $connectionString;
+        $this->connectTimeout = $connectTimeout;
 
-        $this->maxConnections = (int) $maxConnections;
+        $this->maxConnections = $maxConnections;
         if (1 > $this->maxConnections) {
             $this->maxConnections = 1;
         }
@@ -47,7 +47,7 @@ class ConnectionPool extends AbstractPool
     /**
      * {@inheritdoc}
      */
-    protected function createConnection()
+    protected function createConnection(): \Generator
     {
         return connect($this->connectionString, $this->connectTimeout);
     }
@@ -55,7 +55,7 @@ class ConnectionPool extends AbstractPool
     /**
      * {@inheritdoc}
      */
-    public function getMaxConnections()
+    public function getMaxConnections(): int
     {
         return $this->maxConnections;
     }

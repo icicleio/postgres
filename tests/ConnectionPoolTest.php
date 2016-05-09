@@ -18,9 +18,9 @@ class ConnectionPoolTest extends AbstractPoolTest
             ->getMock();
 
         $mock->method('createConnection')
-            ->will($this->returnCallback(function () use ($connections) {
+            ->will($this->returnCallback(function () use ($connections): \Generator {
                 static $count = 0;
-                yield $connections[$count++];
+                return yield $connections[$count++];
             }));
 
         return $mock;

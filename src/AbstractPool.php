@@ -37,7 +37,7 @@ abstract class AbstractPool implements Pool
      *
      * @throws \Icicle\Postgres\Exception\FailureException
      */
-    abstract protected function createConnection();
+    abstract protected function createConnection(): \Generator;
 
     public function __construct()
     {
@@ -49,7 +49,7 @@ abstract class AbstractPool implements Pool
     /**
      * {@inheritdoc}
      */
-    public function getConnectionCount()
+    public function getConnectionCount(): int
     {
         return $this->connections->count();
     }
@@ -57,7 +57,7 @@ abstract class AbstractPool implements Pool
     /**
      * {@inheritdoc}
      */
-    public function getIdleConnectionCount()
+    public function getIdleConnectionCount(): int
     {
         return $this->idle->count();
     }
@@ -82,12 +82,12 @@ abstract class AbstractPool implements Pool
      *
      * @resolve \Icicle\Postgres\Connection
      */
-    private function pop()
+    private function pop(): \Generator
     {
         while (null !== $this->awaitable) {
             try {
                 yield $this->awaitable; // Prevent simultaneous connection creation.
-            } catch (\Exception $exception) {
+            } catch (\Throwable $exception) {
                 // Ignore failure or cancellation of other operations.
             }
         }
@@ -109,7 +109,7 @@ abstract class AbstractPool implements Pool
         }
 
         // Shift a connection off the idle queue.
-        yield $this->idle->shift();
+        return $this->idle->shift();
     }
 
     /**
@@ -133,70 +133,70 @@ abstract class AbstractPool implements Pool
     /**
      * {@inheritdoc}
      */
-    public function query($sql)
+    public function query(string $sql): \Generator
     {
         /** @var \Icicle\Postgres\Connection $connection */
-        $connection = (yield $this->pop());
+        $connection = yield from $this->pop();
 
         try {
-            $result = (yield $connection->query($sql));
+            $result = yield from $connection->query($sql);
         } finally {
             $this->push($connection);
         }
 
-        yield $result;
+        return $result;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function execute($sql, ...$params)
+    public function execute(string $sql, ...$params): \Generator
     {
         /** @var \Icicle\Postgres\Connection $connection */
-        $connection = (yield $this->pop());
+        $connection = yield from $this->pop();
 
         try {
-            $result = (yield $connection->execute($sql, ...$params));
+            $result = yield from $connection->execute($sql, ...$params);
         } finally {
             $this->push($connection);
         }
 
-        yield $result;
+        return $result;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function prepare($sql)
+    public function prepare(string $sql): \Generator
     {
         /** @var \Icicle\Postgres\Connection $connection */
-        $connection = (yield $this->pop());
+        $connection = yield from $this->pop();
 
         try {
-            $result = (yield $connection->prepare($sql));
+            $result = yield from $connection->prepare($sql);
         } finally {
             $this->push($connection);
         }
 
-        yield $result;
+        return $result;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function transaction($isolation = Transaction::COMMITTED)
+    public function transaction(int $isolation = Transaction::COMMITTED): \Generator
     {
         /** @var \Icicle\Postgres\Connection $connection */
-        $connection = (yield $this->pop());
+        $connection = yield from $this->pop();
 
         try {
-            $transaction = (yield $connection->transaction($isolation));
-        } catch (\Exception $exception) {
+            $transaction = yield from $connection->transaction($isolation);
+        } catch (\Throwable $exception) {
             $this->push($connection);
             throw $exception;
         }
 
-        yield new Transaction($transaction, $isolation, function () use ($connection) {
+        return new Transaction($transaction, $isolation, function () use ($connection) {
             $this->push($connection);
         });
     }
