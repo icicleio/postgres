@@ -1,6 +1,8 @@
 <?php
 namespace Icicle\Postgres;
 
+use Icicle\Awaitable;
+use Icicle\Awaitable\Delayed;
 use Icicle\Coroutine\Coroutine;
 use Icicle\Exception\InvalidArgumentError;
 
@@ -22,9 +24,9 @@ abstract class AbstractPool implements Pool
     private $connections;
 
     /**
-     * @var \Icicle\Coroutine\Coroutine|null
+     * @var \Icicle\Awaitable\Awaitable|null
      */
-    private $coroutine;
+    private $awaitable;
 
     /**
      * @coroutine
@@ -69,7 +71,7 @@ abstract class AbstractPool implements Pool
             return;
         }
 
-        $this->connections[$connection] = 0;
+        $this->connections->attach($connection);
         $this->idle->push($connection);
     }
 
@@ -82,33 +84,32 @@ abstract class AbstractPool implements Pool
      */
     private function pop()
     {
-        while (null !== $this->coroutine) {
-            yield $this->coroutine; // Prevent simultaneous connection creation.
+        while (null !== $this->awaitable) {
+            try {
+                yield $this->awaitable; // Prevent simultaneous connection creation.
+            } catch (\Exception $exception) {
+                // Ignore failure or cancellation of other operations.
+            }
         }
 
         if ($this->idle->isEmpty()) {
-            if ($this->connections->count() >= $this->getMaxConnections()) {
-                // All possible connections busy, so shift from head (will be pushed back onto tail below).
-                $connection = $this->busy->shift();
-            } else {
-                // Max connection count has not been reached, so open another connection.
-                try {
-                    $this->coroutine = new Coroutine($this->createConnection());
-                    $connection = (yield $this->coroutine);
-                    $this->connections[$connection] = 0;
-                } finally {
-                    $this->coroutine = null;
+            try {
+                if ($this->connections->count() >= $this->getMaxConnections()) {
+                    // All possible connections busy, so wait until one becomes available.
+                    $this->awaitable = new Delayed();
+                    yield $this->awaitable = new Delayed();
+                } else {
+                    // Max connection count has not been reached, so open another connection.
+                    $this->awaitable = new Coroutine($this->createConnection());
+                    $this->addConnection(yield $this->awaitable);
                 }
+            } finally {
+                $this->awaitable = null;
             }
-        } else {
-            // Shift a worker off the idle queue.
-            $connection = $this->idle->shift();
         }
 
-        $this->busy->push($connection);
-        $this->connections[$connection] += 1;
-
-        yield $connection;
+        // Shift a connection off the idle queue.
+        yield $this->idle->shift();
     }
 
     /**
@@ -122,19 +123,11 @@ abstract class AbstractPool implements Pool
             throw new InvalidArgumentError('Connection is not part of this pool');
         }
 
-        if (0 < ($this->connections[$connection] -= 1)) {
-            return;
-        }
-
-        // Connection is completely idle, remove from busy queue and add to idle queue.
-        foreach ($this->busy as $key => $busy) {
-            if ($busy === $connection) {
-                unset($this->busy[$key]);
-                break;
-            }
-        }
-
         $this->idle->push($connection);
+
+        if ($this->awaitable instanceof Delayed) {
+            $this->awaitable->resolve($connection);
+        }
     }
 
     /**
@@ -186,5 +179,25 @@ abstract class AbstractPool implements Pool
         }
 
         yield $result;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function transaction($isolation = Transaction::COMMITTED)
+    {
+        /** @var \Icicle\Postgres\Connection $connection */
+        $connection = (yield $this->pop());
+
+        try {
+            $transaction = (yield $connection->transaction($isolation));
+        } catch (\Exception $exception) {
+            $this->push($connection);
+            throw $exception;
+        }
+
+        yield new Transaction($transaction, function () use ($connection) {
+            $this->push($connection);
+        });
     }
 }

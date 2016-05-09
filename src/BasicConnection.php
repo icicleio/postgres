@@ -2,6 +2,7 @@
 namespace Icicle\Postgres;
 
 use Icicle\Awaitable\Delayed;
+use Icicle\Exception\InvalidArgumentError;
 use Icicle\Loop;
 use Icicle\Loop\Watcher\Io;
 use Icicle\Postgres\Exception\FailureException;
@@ -157,6 +158,7 @@ class BasicConnection implements Connection
      * @return \Icicle\Postgres\CommandResult|\Icicle\Postgres\TupleResult
      *
      * @throws \Icicle\Postgres\Exception\FailureException
+     * @throws \Icicle\Postgres\Exception\QueryError
      */
     private function createResult($result)
     {
@@ -183,15 +185,7 @@ class BasicConnection implements Connection
     }
 
     /**
-     * @coroutine
-     *
-     * @param string $sql
-     *
-     * @return \Generator
-     *
-     * @resolve \Icicle\Postgres\Result
-     *
-     * @throws \Icicle\Postgres\Exception\FailureException
+     * {@inheritdoc}
      */
     public function query($sql)
     {
@@ -199,16 +193,7 @@ class BasicConnection implements Connection
     }
 
     /**
-     * @coroutine
-     *
-     * @param string $sql
-     * @param mixed ...$params
-     *
-     * @return \Generator
-     *
-     * @resolve \Icicle\Postgres\Result
-     *
-     * @throws \Icicle\Postgres\Exception\FailureException
+     * {@inheritdoc}
      */
     public function execute($sql, ...$params)
     {
@@ -216,15 +201,7 @@ class BasicConnection implements Connection
     }
 
     /**
-     * @coroutine
-     *
-     * @param string $sql
-     *
-     * @return \Generator
-     *
-     * @resolve \Icicle\Postgres\Statement
-     *
-     * @throws \Icicle\Postgres\Exception\FailureException
+     * {@inheritdoc}
      */
     public function prepare($sql)
     {
@@ -235,5 +212,34 @@ class BasicConnection implements Connection
         }
 
         yield new Statement($sql, $this->executeCallback);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function transaction($isolation = Transaction::COMMITTED)
+    {
+        switch ($isolation) {
+            case Transaction::UNCOMMITTED:
+                yield $this->query('BEGIN TRANSACTION ISOLATION LEVEL READ UNCOMMITTED');
+                break;
+
+            case Transaction::COMMITTED:
+                yield $this->query('BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED');
+                break;
+
+            case Transaction::REPEATABLE:
+                yield $this->query('BEGIN TRANSACTION ISOLATION LEVEL READ REPEATABLE');
+                break;
+
+            case Transaction::SERIALIZABLE:
+                yield $this->query('BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE');
+                break;
+
+            default:
+                throw new InvalidArgumentError('Invalid transaction type');
+        }
+
+        yield new Transaction($this);
     }
 }

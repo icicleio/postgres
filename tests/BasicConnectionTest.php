@@ -7,6 +7,8 @@ use Icicle\Loop;
 use Icicle\Postgres\CommandResult;
 use Icicle\Postgres\BasicConnection;
 use Icicle\Postgres\Exception\QueryError;
+use Icicle\Postgres\Exception\TransactionError;
+use Icicle\Postgres\Transaction;
 use Icicle\Postgres\TupleResult;
 
 class BasicConnectionTest extends \PHPUnit_Framework_TestCase
@@ -39,7 +41,7 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
         $this->handle = \pg_connect('host=localhost user=postgres');
         $socket = \pg_socket($this->handle);
 
-        $result = \pg_query($this->handle, "CREATE TABLE test (domain VARCHAR(63), tld VARCHAR(63))");
+        $result = \pg_query($this->handle, "CREATE TABLE test (domain VARCHAR(63), tld VARCHAR(63), PRIMARY KEY (domain, tld))");
 
         if (!$result) {
             $this->fail('Could not create test table.');
@@ -58,6 +60,7 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
 
     public function tearDown()
     {
+        \pg_query($this->handle, "ROLLBACK");
         \pg_query($this->handle, "DROP TABLE test");
     }
 
@@ -362,5 +365,38 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
         $coroutine->done();
 
         Loop\run();
+    }
+
+    public function testTransaction()
+    {
+        $coroutine = Coroutine\create(function () {
+            /** @var \Icicle\Postgres\Transaction $transaction */
+            $transaction = (yield $this->connection->transaction(Transaction::COMMITTED));
+
+            $this->assertInstanceOf(Transaction::class, $transaction);
+
+            $data = $this->getData()[0];
+
+            $this->assertTrue($transaction->isActive());
+
+            yield $transaction->savepoint('test');
+
+            $result = (yield $transaction->execute("SELECT * FROM test WHERE domain=\$1 FOR UPDATE", $data[0]));
+
+            yield $transaction->rollbackTo('test');
+
+            yield $transaction->commit();
+
+            $this->assertFalse($transaction->isActive());
+
+            try {
+                $result = (yield $transaction->execute("SELECT * FROM test"));
+                $this->fail('Query should fail after transaction commit');
+            } catch (TransactionError $exception) {
+                // Exception expected.
+            }
+        });
+
+        $coroutine->wait();
     }
 }
