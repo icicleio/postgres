@@ -229,7 +229,7 @@ class BasicConnection implements Connection
                 break;
 
             case Transaction::REPEATABLE:
-                yield $this->query('BEGIN TRANSACTION ISOLATION LEVEL READ REPEATABLE');
+                yield $this->query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ');
                 break;
 
             case Transaction::SERIALIZABLE:
@@ -240,6 +240,6 @@ class BasicConnection implements Connection
                 throw new InvalidArgumentError('Invalid transaction type');
         }
 
-        yield new Transaction($this);
+        yield new Transaction($this, $isolation);
     }
 }

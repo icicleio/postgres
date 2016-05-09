@@ -1,6 +1,7 @@
 <?php
 namespace Icicle\Postgres;
 
+use Icicle\Exception\InvalidArgumentError;
 use Icicle\Postgres\Exception\TransactionError;
 
 class Transaction implements Executor
@@ -21,11 +22,31 @@ class Transaction implements Executor
     private $push;
 
     /**
-     * @param \Icicle\Postgres\Executor $executor
-     * @param callable|null $push
+     * @var int
      */
-    public function __construct(Executor $executor, callable $push = null)
+    private $isolation;
+
+    /**
+     * @param \Icicle\Postgres\Executor $executor
+     * @param int $isolation
+     * @param callable|null $push
+     *
+     * @throws \Icicle\Exception\InvalidArgumentError
+     */
+    public function __construct(Executor $executor, $isolation = self::COMMITTED, callable $push = null)
     {
+        switch ($isolation) {
+            case self::UNCOMMITTED:
+            case self::COMMITTED:
+            case self::REPEATABLE:
+            case self::SERIALIZABLE:
+                $this->isolation = $isolation;
+                break;
+
+            default:
+                throw new InvalidArgumentError('$isolation must be a valid transaction isolation level');
+        }
+
         $this->executor = $executor;
         $this->push = $push;
     }
@@ -43,6 +64,14 @@ class Transaction implements Executor
     public function isActive()
     {
         return null !== $this->executor;
+    }
+
+    /**
+     * @return int
+     */
+    public function getIsolationLevel()
+    {
+        return $this->isolation;
     }
 
     /**

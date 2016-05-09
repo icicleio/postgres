@@ -196,7 +196,7 @@ abstract class AbstractPool implements Pool
             throw $exception;
         }
 
-        yield new Transaction($transaction, function () use ($connection) {
+        yield new Transaction($transaction, $isolation, function () use ($connection) {
             $this->push($connection);
         });
     }

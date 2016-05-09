@@ -370,14 +370,17 @@ class BasicConnectionTest extends \PHPUnit_Framework_TestCase
     public function testTransaction()
     {
         $coroutine = Coroutine\create(function () {
+            $isolation = Transaction::COMMITTED;
+
             /** @var \Icicle\Postgres\Transaction $transaction */
-            $transaction = (yield $this->connection->transaction(Transaction::COMMITTED));
+            $transaction = (yield $this->connection->transaction($isolation));
 
             $this->assertInstanceOf(Transaction::class, $transaction);
 
             $data = $this->getData()[0];
 
             $this->assertTrue($transaction->isActive());
+            $this->assertSame($isolation, $transaction->getIsolationLevel());
 
             yield $transaction->savepoint('test');
 
