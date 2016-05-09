@@ -42,6 +42,8 @@ You can also manually edit `composer.json` to add this library as a project requ
 
 #### Example
 
+Note that this example uses the PHP 7+ only v1.x (master) branch.
+
 ```php
 #!/usr/bin/env php
 <?php
@@ -64,7 +66,7 @@ Icicle\execute(function () {
 
     while (yield from $iterator->isValid()) {
         $row = $iterator->getCurrent();
-        // $row is an array of column values from the current table row.
+        // $row is an array (map) of column values. e.g.: $row['column_name']
     }
 });
 ```
