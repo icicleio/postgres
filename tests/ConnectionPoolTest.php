@@ -13,7 +13,7 @@ class ConnectionPoolTest extends AbstractPoolTest
     protected function createPool(array $connections)
     {
         $mock = $this->getMockBuilder(ConnectionPool::class)
-            ->setConstructorArgs(['', 0, count($connections)])
+            ->setConstructorArgs(['connection string', count($connections)])
             ->setMethods(['createConnection'])
             ->getMock();
 

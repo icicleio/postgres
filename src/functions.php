@@ -8,8 +8,10 @@ use Icicle\Postgres\Exception\FailureException;
 
 if (!\function_exists(__NAMESPACE__ . '\connect')) {
     /**
+     * @coroutine
+     *
      * @param string $connectionString
-     * @param float $timeout
+     * @param float|int $timeout
      *
      * @return \Generator
      *
@@ -71,5 +73,20 @@ if (!\function_exists(__NAMESPACE__ . '\connect')) {
         $await->listen($timeout);
 
         yield $delayed;
+    }
+
+    /**
+     * @param string $connectionString
+     * @param int $maxConnections
+     * @param float|int $connectTimeout
+     *
+     * @return \Icicle\Postgres\ConnectionPool
+     */
+    function pool(
+        $connectionString,
+        $maxConnections = ConnectionPool::DEFAULT_MAX_CONNECTIONS,
+        $connectTimeout = ConnectionPool::DEFAULT_CONNECT_TIMEOUT
+    ) {
+        return new ConnectionPool($connectionString, $maxConnections, $connectTimeout);
     }
 }

@@ -6,6 +6,7 @@ use function Icicle\Postgres\connect;
 class ConnectionPool extends AbstractPool
 {
     const DEFAULT_MAX_CONNECTIONS = 100;
+    const DEFAULT_CONNECT_TIMEOUT = 5;
 
     /**
      * @var string
@@ -24,11 +25,14 @@ class ConnectionPool extends AbstractPool
 
     /**
      * @param string $connectionString
-     * @param float|int $connectTimeout
      * @param int $maxConnections
+     * @param float|int $connectTimeout
      */
-    public function __construct($connectionString, $connectTimeout = 0, $maxConnections = self::DEFAULT_MAX_CONNECTIONS)
-    {
+    public function __construct(
+        $connectionString,
+        $maxConnections = self::DEFAULT_MAX_CONNECTIONS,
+        $connectTimeout = self::DEFAULT_CONNECT_TIMEOUT
+    ) {
         parent::__construct();
 
         $this->connectionString = (string) $connectionString;
